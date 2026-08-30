@@ -1,114 +1,130 @@
-ASL Translation
+# ASL Translation
 
-Real-time American Sign Language (ASL) recognition system that captures hand gestures via webcam, extracts landmark features with MediaPipe, classifies them with a PyTorch model, and streams predictions live through a FastAPI + WebSocket server.
+A real-time American Sign Language (ASL) translator that uses **MediaPipe Holistic** landmark tracking and a **sequence-based deep learning model** to recognize signs from a webcam feed and translate them into text.
 
-Overview
+Currently supports **6 signs**:
 
-This project turns raw webcam video into live ASL predictions through a full machine learning pipeline:
+| Sign | Gesture |
+|------|---------|
+| `idle` | No active sign / resting position |
+| `hello` | Hello |
+| `yes` | Yes |
+| `no` | No |
+| `thank you` | Thank you |
+| `help` | Help |
 
-Collect — record labeled gesture samples from a webcam
-Extract — convert raw frames into MediaPipe hand landmark features
-Train — fit a PyTorch classification model on the extracted features
-Export — convert the trained model to ONNX for fast, portable inference
-Serve — run a FastAPI backend that streams predictions over WebSockets in real time
-Features
-Real-time hand tracking using MediaPipe
-Custom-trained PyTorch model for ASL gesture classification
-ONNX export for lightweight, low-latency inference
-WebSocket-based live prediction streaming via FastAPI
-Modular pipeline — collect, extract, train, and export are all separate, reusable scripts
-Tech Stack
-Layer	Technology
-Computer Vision	MediaPipe, OpenCV
-Model	PyTorch, scikit-learn
-Inference	ONNX, ONNX Runtime
-Backend	FastAPI, Uvicorn, WebSockets
-Project Structure
+More signs will be added as the dataset grows — see [Roadmap](#roadmap).
+
+---
+
+## How It Works
+
+1. **Data Collection** — Webcam footage is captured and passed through MediaPipe Holistic to extract pose and hand landmarks for each sign, recorded as multiple short sequences.
+2. **Feature Extraction** — Pose, left-hand, and right-hand landmarks are flattened into numerical feature vectors per frame.
+3. **Training** — A sequence model (trained on stacked frame-by-frame landmark sequences) learns to classify a window of frames into one of the six sign classes.
+4. **Export** — The trained model is exported to **ONNX** for fast, cross-platform, framework-independent inference.
+5. **Inference** — A lightweight engine runs the ONNX model on a live webcam feed and streams predictions to a simple web front-end.
+
+---
+
+## Project Structure
+
+```
 ASL-Translation/
+├── data/                     # Collected landmark sequences (per sign, per sample)
+├── models/                   # Saved / exported models (.onnx, checkpoints)
 ├── server/
-│   ├── __init__.py
-│   └── app.py              # FastAPI app — serves real-time predictions over WebSockets
+│   └── static/
+│       └── index.html        # Front-end UI for live translation
 ├── src/
 │   ├── __init__.py
-│   ├── collect_data.py     # Captures labeled gesture samples from the webcam
-│   ├── extract_features.py # Extracts MediaPipe hand landmarks from raw data
-│   ├── dataset.py          # PyTorch Dataset for loading extracted features
-│   ├── model.py            # Model architecture definition
-│   ├── engine.py           # Training and evaluation loops
-│   ├── train.py            # Trains the classification model
-│   ├── export_onnx.py      # Exports the trained model to ONNX format
-│   └── config.py           # Shared paths, constants, and hyperparameters
+│   ├── config.py             # ACTIONS, sequence length, data paths, etc.
+│   ├── extract_features.py   # MediaPipe detection + landmark extraction helpers
+│   ├── collect_data.py       # Webcam-based dataset recording script
+│   ├── dataset.py            # Dataset loading / preprocessing for training
+│   ├── model.py              # Model architecture definition
+│   ├── train.py              # Training loop
+│   ├── export_onnx.py        # Exports the trained model to ONNX
+│   └── engine.py             # Inference engine (loads ONNX model, runs predictions)
+├── app.py                    # Application entry point / server
 ├── requirements.txt
-└── .gitignore
-Getting Started
-Prerequisites
-Python 3.9+
-A webcam
-pip
-Installation
+└── README.md
+```
 
-Clone the repository and install dependencies:
+---
 
-bash
-git clone https://github.com/EsanSharma/ASL-Translation.git
+## Getting Started
+
+### Prerequisites
+
+- Python 3.9+
+- A webcam
+- pip
+
+### Installation
+
+git clone https://github.com/<your-username>/ASL-Translation.git
 cd ASL-Translation
+python -m venv .venv
+.venv\Scripts\activate      # Windows
+# source .venv/bin/activate # macOS / Linux
 pip install -r requirements.txt
-Usage
 
-1. Collect gesture data
+---
 
-Record labeled samples of ASL gestures using your webcam:
+## Usage
 
-bash
-python src/collect_data.py
+### 1. Collect Training Data
 
-2. Extract features
+Records webcam sequences for each configured sign in `src/config.py`, saving landmark data under `data/`.
 
-Convert the raw collected data into MediaPipe hand landmark features:
+python -m src.collect_data
 
-bash
-python src/extract_features.py
+A 3-second countdown appears before each sequence so you have time to get in position.
 
-3. Train the model
+### 2. Train the Model
 
-Train the classifier on the extracted features:
+python -m src.train
 
-bash
-python src/train.py
+### 3. Export to ONNX
 
-4. Export to ONNX
+python -m src.export_onnx
 
-Export the trained model for fast inference:
 
-bash
-python src/export_onnx.py
+### 4. Run the Translator
 
-5. Run the server
 
-Start the FastAPI server to serve live predictions:
+python app.py
 
-bash
-uvicorn server.app:app --reload
 
-The server will be available at http://localhost:8000.
+Then open your browser to the address printed in the terminal to see live sign predictions on the web UI (`server/static/index.html`).
 
-Configuration
+---
 
-Adjust paths, hyperparameters, and other settings in src/config.py before running the pipeline.
+## Tech Stack
 
-Roadmap
- Add a frontend client for live webcam demo
- Expand gesture vocabulary
- Add model evaluation metrics and benchmarks
- Deploy a hosted demo
-Contributing
+- **[MediaPipe](https://developers.google.com/mediapipe)** — pose & hand landmark detection
+- **OpenCV** — webcam capture and frame processing
+- **NumPy** — numerical feature handling
+- **ONNX Runtime** — fast, portable model inference
+- **Python** (Flask/FastAPI-style `app.py` server) — serves the web front-end and prediction API
 
-Contributions are welcome. Feel free to open an issue or submit a pull request.
+---
 
-License
+## Roadmap
 
-Specify a license (e.g. MIT) for this project.
+-  Expand vocabulary beyond the initial 6 signs
+-  Improve model accuracy with more training samples per class
+-  Add confidence smoothing / debouncing for steadier predictions
+-  Package as a standalone desktop app
+-  Mobile support
 
-Author
+---
 
-Esan Sharma GitHub
+## Contributing
+
+Contributions are welcome! Feel free to open an issue or submit a pull request if you'd like to add new signs, improve accuracy, or enhance the UI.
+
+## License
+
+This project is licensed under the MIT License — see the `LICENSE` file for details.
