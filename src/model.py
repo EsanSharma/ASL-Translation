@@ -4,7 +4,7 @@ import torch.nn as nn
 class ASLGestureClassifier(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, num_classes: int):
         super(ASLGestureClassifier, self).__init__()
-        # Input takes flattened summary features: [Mean (258), Delta/Velocity (258), Std (258)] = 774
+        
         summary_input_dim = input_size * 3
         
         self.net = nn.Sequential(
@@ -20,7 +20,7 @@ class ASLGestureClassifier(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x shape: (batch, 30, 258)
+       
         mean_feat = torch.mean(x, dim=1)
         delta_feat = x[:, -1, :] - x[:, 0, :]
         std_feat = torch.std(x, dim=1)
