@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ASL Translation Engine</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f8fafc; text-align: center; margin: 0; padding: 20px; }
+        .container { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; }
+        video { width: 640px; height: 480px; border-radius: 12px; border: 2px solid #1e293b; background: #000; }
+        .card { margin-top: 16px; padding: 16px 24px; background: #111827; border-radius: 10px; border: 1px solid #1f2937; width: 600px; }
+        .output { font-size: 1.6rem; font-weight: 700; color: #38bdf8; }
+        .prob-container { margin-top: 12px; text-align: left; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 0.85rem; color: #94a3b8; }
+        .prob-item { background: #1f2937; padding: 6px 10px; border-radius: 6px; }
+        .highlight { color: #4ade80; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>ASL Translation Engine</h2>
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+        <div class="card">
+            <div>Detected Gesture: <span id="prediction" class="output">Connecting...</span></div>
+            <div style="margin-top:6px; color:#9ca3af;">Confidence: <span id="confidence">0%</span></div>
+            <div class="prob-container" id="probList"></div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const predText = document.getElementById('prediction');
+        const confText = document.getElementById('confidence');
+        const probList = document.getElementById('probList');
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws/stream`);
+
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }).then(stream => {
+            video.srcObject = stream;
+        });
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.action) {
+                predText.innerText = data.action.toUpperCase();
+                confText.innerText = (data.confidence * 100).toFixed(1) + "%";
+
+                // Render live probability breakdown
+                if (data.all_probabilities) {
+                    probList.innerHTML = Object.entries(data.all_probabilities)
+                        .map(([act, prob]) => `
+                            <div class="prob-item ${act === data.raw_action ? 'highlight' : ''}">
+                                ${act}: ${(prob * 100).toFixed(0)}%
+                            </div>
+                        `).join('');
+                }
+            } else if (data.status === 'buffering') {
+                predText.innerText = `Buffering (${data.frames}/30)...`;
+            }
+        };
+
+        setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN && video.readyState >= 2) {
+                ctx.drawImage(video, 0, 0, 640, 480);
+                const frameData = canvas.toDataURL('image/jpeg', 0.5);
+                ws.send(JSON.stringify({ image: frameData }));
+            }
+        }, 66);
+    </script>
+</body>
+</html>
