@@ -5,7 +5,6 @@ DATA_DIR = BASE_DIR / "data" / "processed"
 MODEL_DIR = BASE_DIR / "models"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-# Added "idle" as the baseline rest state
 ACTIONS = ["idle", "hello", "thank_you", "yes", "no", "help"]
 
 SEQUENCE_LENGTH = 30
